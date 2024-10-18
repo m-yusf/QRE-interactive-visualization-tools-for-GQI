@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Resource Estimation Visualization</title>
+    <style>
+        /* Add your CSS styles here */
+        body {
+            font-family: Times New Roman, sans-serif;
+            /* position: relative; */
+        }
+        .chart-control {
+            fill: blue;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        #qubitLabel {
+        position: absolute;
+        left: 50%; /* Adjust based on your exact alignment needs */
+        transform: translateX(-650px); /* Adjust to align precisely with the slider start */
+        top: 150px; /* Match vertical alignment with the slider */
+        }
+        #qubitDisplay {
+            position: absolute;
+            left: 50%; /* Adjust based on your exact alignment needs */
+            transform: translateX(-130px); /* Adjust to align precisely with the slider end */
+            top: 150px; /* Match vertical alignment with the slider */
+        }
+        #qubitRange {
+        position: absolute;
+        left: 50%;    /* Center align the slider */
+        transform: translateX(-132%); /* Center the slider exactly */
+        top: 150px;   /* Adjust this value based on the actual position of your SVG */
+        width: 30%; /* Adjust based on your preference */
+        z-index: 10;  /* Ensures the slider is above the SVG */
+        }
+
+        /*  */
+
+        #runtimeLabel {
+        position: absolute;
+        left: 50%;
+        transform: translateX(10px);
+        top: 150px;  /* Adjust as needed for layout */
+        }
+
+        #runtimeDisplay {
+        position: absolute;
+        left: 50%;
+        transform: translateX(553px);
+        top: 150px;  /* Adjust as needed for layout */
+        }
+
+
+        #runtimeRange {
+          position: absolute;
+          left: 50%;
+          transform: translateX(110px);
+          top: 150px;
+          width: 30%;
+          z-index: 10;
+        }
+
+    .button-rect {
+        fill: #007bff; /* Light blue for visibility */
+        stroke: #0056b3; /* Slightly darker border for depth */
+        stroke-width: 1px; /* Define the thickness of the border */
+    }
+    .button-text {
+        fill: white; /* White text color for visibility */
+        font-weight: bold;
+        font-family: "Times New Roman", serif;
+        cursor: pointer;
+        pointer-events: all; /* Ensure text is clickable */
+        text-anchor: middle;
+    }
+
+    </style>
+</head>
+
+<body>
+
+  <div style="margin: 20px;"></div>
+  <label id="qubitLabel" for="qubitRange">Qubit Filter:</label>
+  <input type="range" id="qubitRange" name="qubitRange" min="0" max="100" step="1" value="0">
+  <span id="qubitDisplay">0.001-0.5 M</span>
+
+  <!--  -->
+  <label id="runtimeLabel" for="runtimeRange">Runtime Filter:</label>
+  <input type="range" id="runtimeRange" name="runtimeRange" min="0" max="100" step="1" value="0">
+  <span id="runtimeDisplay">0-0.2 sec</span>
+
+  
+ 
+      </div>
+
+    <div id="chart"></div>
+
+    <style>
+    input[type="range"] {
+        height: 15px;  /* Adjusts the height of the slider */
+        width: 40%;    /* Adjusts the width to be more visible */
+        cursor: pointer; /* Changes cursor type on hover */
+    }
+    </style>
+    
+
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+
+    <script>
+
+
+// Define dimensions and margins
+const width = window.innerWidth;
+const height = 720;
+const margin = { top: 180, right: 200, bottom: 40, left: 85 };
+  
+
+// Select the HTML element where the chart will be rendered
+const svg = d3.select("#chart").append("svg")
+    .attr("width", "100%")
+    .attr("height", "800")
+    .style("border", "1.0px solid black");
+
+    // const svg = d3.create("svg")
+    //   .attr("viewBox", [0, 0, width - 70 , height]) 
+    //   .style("width", "100%")
+    //   .style("height", "auto");
+  
+  
+// Sample data structured for plotting
+const datasets = {
+  "Quantum Dynamics": [
+    {runtime: 720, qubits: 2.15438},
+    {runtime: 360, qubits: 0.65934},
+    {runtime: 2, qubits: 4.77394},
+    {runtime: 0.908, qubits: 0.16254},
+    {runtime: 0.493, qubits: 7.36318},
+    {runtime: 0.223, qubits: 0.65934},
+    {runtime: 0.175, qubits: 5.57108},
+    {runtime: 0.097, qubits: 0.59796}
+  ],
+  
+  "Quantum Dynamics (Reduced T Factories)": [
+    {runtime: 7200, qubits: 0.38782},
+    {runtime: 3600, qubits: 0.1075},
+    {runtime: 22, qubits: 0.59494},
+    {runtime: 9, qubits: 0.03654},
+    {runtime: 5, qubits: 0.63486},
+    {runtime: 3, qubits: 0.1075},
+    {runtime: 2, qubits: 0.58836},
+    {runtime: 0.973, qubits: 0.08844}
+  ],
+  
+  "Factoring": [
+    {runtime: 126489600, qubits: 33.961032},
+    {runtime: 63244800, qubits: 7.884592},
+    {runtime: 432000, qubits: 29.411200},
+    {runtime: 172800, qubits: 3.773448},
+    {runtime: 86400, qubits: 34.168792},
+    {runtime: 43200, qubits: 7.911072},
+    {runtime: 39600, qubits: 23.702448},
+    {runtime: 18000, qubits: 5.683296}
+  ],
+  
+  "Quantum Chemistry (Ruthenium)": [
+    {runtime: 4933094400, qubits: 5.616200},
+    {runtime: 2371680000, qubits: 1.314120},
+    {runtime: 14342400, qubits: 26.634920},
+    {runtime: 5875200, qubits:  0.737960},
+    {runtime: 3283200, qubits: 6.037400},
+    {runtime: 1555200, qubits: 1.473000},
+    {runtime: 1382400, qubits:  4.204560},
+    {runtime: 691200, qubits: 1.296080}
+  ],
+
+  "Quantum Chemistry (Nitrogenase)": [
+    {runtime: 14135212800, qubits: 7.612240},
+    {runtime: 13724121600, qubits: 1.816568},
+    {runtime: 505958400, qubits: 9.836432},
+    {runtime: 158112000, qubits: 0.790232},
+    {runtime: 94867200, qubits: 8.076348},
+    {runtime: 31622400, qubits: 1.932568},
+    {runtime: 31622400, qubits: 8.657504},
+    {runtime: 23155200, qubits: 1.379888}
+  ],
+
+  "QPE (SHO)": [
+    {runtime: 94867200, qubits: 0.469342},
+    {runtime: 31622400, qubits: 0.121342},
+    {runtime: 345600, qubits: 24.178750},
+    {runtime: 86400, qubits: 0.108198},
+    {runtime: 72000, qubits: 0.970542},
+    {runtime: 32400, qubits: 0.289462},
+    {runtime: 28800, qubits: 0.892188},
+    {runtime: 14400, qubits: 0.323676}
+  ],
+
+  "QFT": [
+    {runtime: 3000, qubits: 4.096902},
+    {runtime: 1560, qubits: 0.962862},
+    {runtime: 9, qubits: 9.192902},
+    {runtime: 3, qubits: 0.547918},
+    {runtime: 2, qubits: 8.141742},
+    {runtime: 1, qubits: 0.962862},
+    {runtime: 0.781, qubits: 5.197884},
+    {runtime: 0.355, qubits: 0.788172}
+  ],
+
+  "QAE": [
+    {runtime: 2419200, qubits: 0.453830},
+    {runtime: 1296000, qubits: 0.106414},
+    {runtime: 7200, qubits: 0.714126},
+    {runtime: 2880, qubits: 0.103806},
+    {runtime: 1620, qubits: 0.645230},
+    {runtime: 840, qubits: 0.134734},
+    {runtime: 600, qubits: 0.955196},
+    {runtime: 360, qubits: 0.284492}
+  ],
+  
+    "Grover's Algorithm": [
+    {runtime: 158112000, qubits: 0.683496},
+    {runtime: 63244800, qubits: 0.183720},
+    {runtime: 518400, qubits: 24.340000},
+    {runtime: 172800, qubits: 0.129096},
+    {runtime: 86400, qubits: 1.154616},
+    {runtime: 61200, qubits: 0.326600},
+    {runtime: 46800, qubits: 1.022736},
+    {runtime: 21600, qubits: 0.355152}
+  ],
+
+    "Bayesian QPE": [
+    {runtime: 3480, qubits: 0.213282},
+    {runtime: 1860, qubits: 0.059778},
+    {runtime: 10, qubits: 0.445050},
+    {runtime: 3, qubits: 0.018450},
+    {runtime: 2, qubits: 0.365202},
+    {runtime: 1, qubits: 0.059778},
+    {runtime: 0.922, qubits: 0.505812},
+    {runtime: 0.512, qubits: 0.053988}
+  ],
+  
+"Iterative QPE": [
+    {runtime: 0.130, qubits: 0.002268},
+    {runtime: 0.072, qubits: 0.000700},
+    {runtime: 0.000336, qubits: 0.128772},
+    {runtime: 0.000144, qubits: 0.008028},
+    {runtime: 0.000086, qubits: 0.142560},
+    {runtime: 0.000048, qubits: 0.022300},
+    {runtime: 0.000036, qubits: 0.223344},
+    {runtime: 0.000022, qubits: 0.029744}
+  ],
+  
+};
+
+// // each use case shall have a distinct color
+// const algorithmColors = {
+//   "Quantum Dynamics": "#1f77b4",
+//   "Quantum Dynamics (Reduced T Factories)": "#ff7f0e",
+//   "Factoring": "#2ca02c",
+//   "Quantum Chemistry (Ruthenium)": "#d62728",
+//   "Quantum Chemistry (Nitrogenase)": "#9467bd",
+//   "QPE (SHO)": "#8c564b",
+//   "QFT": "#e377c2",
+//   "QAE": "#17becf",
+//   "Grover's Algorithm": "#bcbd22",
+//   "Bayesian QPE": "#7f7f7f",
+//   "Iterative QPE": "#dbdb8d",
+// };
+
+const algorithmColors = {
+  "Quantum Dynamics": "rgba(31, 119, 180, 0.8)",
+  "Quantum Dynamics (Reduced T Factories)": "rgba(255, 127, 14, 0.8)",
+  "Factoring": "rgba(44, 160, 44, 0.8)",
+  "Quantum Chemistry (Ruthenium)": "rgba(214, 39, 40, 0.8)",
+  "Quantum Chemistry (Nitrogenase)": "rgba(148, 103, 189, 0.8)",
+  "QPE (SHO)": "rgba(140, 86, 75, 0.8)",
+  "QFT": "rgba(227, 119, 194, 0.8)",
+  "QAE": "rgba(23, 190, 207, 0.8)",
+  "Grover's Algorithm": "rgba(188, 189, 34, 0.8)",
+  "Bayesian QPE": "rgba(127, 127, 127, 0.8)",
+  "Iterative QPE": "rgba(219, 219, 141, 0.8)"
+};
+
+
+  // "Algorithm 12": "#c49c94",
+  // "Algorithm 13": "#f7b6d2",
+  // "Algorithm 14": "#c7c7c7"
+
+  
+// Define scales
+// Calculate the full extent of the data
+const xExtent = d3.extent(Object.values(datasets).flat(), d => d.runtime);
+const yExtent = d3.extent(Object.values(datasets).flat(), d => d.qubits);
+
+// Define scales using dynamic extents
+const xScale = d3.scaleLog()
+    .domain([xExtent[0] / 10, xExtent[1] * 18])  // Use data extent
+    .range([margin.left, width - margin.right]);
+
+const yScale = d3.scaleLog()
+    .domain([yExtent[0] / 10, yExtent[1] * 10])  // Use data extent
+    .range([height - margin.bottom, margin.top]);
+// ////////////////
+
+const timePoints = {
+  "- second": 1,
+  "- minute": 60,
+  "- hour": 3600,
+  "- day": 86400,
+  "- week": 604800,
+  "- month": 2628000,
+  "- year": 31536000,
+  "- decade": 315360000,
+  "- century": 31536000000,
+};
+  
+// Add axes
+const xAxis = d3.axisBottom(xScale)
+  .tickValues(d3.scaleLog().domain(xScale.domain()).ticks()) // Only logarithmic ticks below the axis
+  .tickFormat(d => `10^${Math.log10(d)}`); // Standard logarithmic labels
+
+const yAxis = d3.axisLeft(yScale)
+  .tickValues([0.01, 0.1, 1, 10, 100])
+  .tickFormat(d => `${d}M`);  // Append 'M' to each tick label
+
+
+// Sort data according to custom indices
+const sorted_indices = [0, 1, 3, 5, 7, 6, 4, 2, 0]; // Sorting order
+
+// Apply sorting to datasets
+Object.keys(datasets).forEach(key => {
+  datasets[key] = sorted_indices.map(index => datasets[key][index]);
+});
+
+  // Create the SVG container
+  // const svg = d3.create("svg")
+  //     .attr("viewBox", [0, 0, width - 70 , height]) 
+  //     .style("width", "100%")
+  //     .style("height", "auto");
+
+// Adding the X axis to the SVG
+svg.append("g")
+  .attr("class", "x-axis")  // Add a class to allow easy selection later
+  .attr("transform", `translate(0,${height - margin.bottom})`)
+  .call(xAxis);
+
+// Adding the Y axis to the SVG
+svg.append("g")
+  .attr("transform", `translate(${margin.left},0)`)
+  .call(yAxis);
+  
+// Add labels for axises
+svg.append("text")
+    .attr("text-anchor", "end")
+    .attr("x", width / 2)
+    .attr("y", height + 5)
+    .text("Runtime (seconds)")
+    .style("font-family", "Times New Roman");
+
+svg.append("text")
+    .attr("text-anchor", "end")
+    .attr("x", -280)
+    .attr("y", 30)
+    .attr("transform", "rotate(-90)")
+    .text("Physical Qubits (millions)")
+    .style("font-family", "Times New Roman");
+
+// Add title to the chart
+svg.append("text")
+    .attr("x", width / 2)  // Position at the center of the SVG width
+    .attr("y", margin.top/3)  // Position in the upper margin space
+    .attr("text-anchor", "middle")  // Center the text
+    .style("font-size", "20px")  // Set font size
+    .style("font-weight", "bold")  // Make the font bold
+    .text("Quantum Resource Estimation Data Visualization")
+    .style("font-family", "Times New Roman");
+
+// Algorithm legend interaction setup
+const algorithms = Object.keys(datasets);
+const algorithmLegend = svg.append("g")
+  .attr("transform", `translate(${width - margin.right + 40}, ${margin.top + 25})`);
+
+algorithmLegend.append("text")
+  .attr("x", -7)
+  .attr("y", -22) // Adjust position to be above the legend title
+  .text("Click to toggle use case")
+  .style("font-size", "12px")
+  .style("font-weight", "normal")
+
+// Add a title for the legend
+algorithmLegend.append("text")
+    .attr("x", -5)
+    .attr("y", -4) // Position slightly above the first item
+    .style("font-size", "12px")
+    .style("font-weight", "bold")
+    .text("Algorithm (Use Case)")
+    .style("font-family", "Times New Roman");
+
+const lineHeight = 20; // Height of one line of text
+const itemSpacing = 10; // Additional spacing between items
+let currentY = 20; // Start placing items below the title
+
+algorithms.forEach((alg, idx) => {
+const textElement = algorithmLegend.append("text")
+    .attr("x", 20) // Move text to the right to make space for color box
+    .attr("y", currentY)
+    .style("cursor", "pointer")
+    .on("click", () => displayAlgorithm(alg))
+    .style("font-size", "10px")
+    .style("font-family", "Times New Roman");
+
+algorithmLegend.append("rect")
+    .attr("x", 0)
+    .attr("y", currentY - 10) // Adjust Y to align with text
+    .attr("width", 11) // Square size
+    .attr("height", 11)
+    .style("fill", algorithmColors[alg]);
+
+// Split the key after the first two words
+const keyParts = alg.split(" ");
+const firstLine = keyParts.slice(0, 2).join(" ");
+const secondLine = keyParts.slice(2).join(" ");
+
+textElement.append("tspan")
+    .attr("x", 0)
+    .attr("dy", "1em")
+    .text(firstLine);
+
+  if (secondLine) {
+      textElement.append("tspan")
+          .attr("x", 0)
+          .attr("dy", "1.2em")
+          .text(secondLine);
+      currentY += lineHeight * 2 + itemSpacing; // Two lines used, increase Y accordingly
+  } else {
+      currentY += lineHeight + itemSpacing; // Only one line used, increase Y accordingly
+  }
+});
+
+// This prepares a tooltip element that will appear when a user hovers over a data point.
+const tooltip = d3.select("body").append("div")
+  .attr("class", "tooltip")
+  .style("opacity", 0)
+  .style("background", "white")
+  .style("border", "1px solid black")
+  .style("padding", "5px")
+  .style("position", "absolute")
+  .style("z-index", "10")
+  .style("pointer-events", "none"); // Prevents tooltip from interfering with mouse events
+
+
+// Add markers and legend
+const colors = ['blue', 'green', 'red', 'cyan', 'magenta', 'black', 'black', 'orange']
+const markerTypes = {
+'circle': d3.symbolCircle,
+'square': d3.symbolSquare,
+'triangle-up': d3.symbolTriangle,
+'triangle-right': d3.symbolTriangle, // Rotate if needed
+'triangle-down': d3.symbolTriangle, // Rotate if needed
+'triangle-left': d3.symbolTriangle, // Rotate if needed
+'pentagon': d3.symbolStar,  // Use star for pentagon, customize further if needed
+'hexagon': d3.symbolDiamond // Use diamond for hexagon, customize further if needed
+};
+  
+const markers = ['circle', 'square', 'triangle-up', 'triangle-right', 'triangle-down', 'triangle-left', 'pentagon', 'hexagon'];
+  
+// Configuration legend interaction setup
+const configurations = [
+{ color: 'blue', label: "μs, 10^-3, surface_code", marker: 'circle' },
+{ color: 'green', label: "μs, 10^-4, surface_code", marker: 'square' },
+{ color: 'red', label: "ns, 10^-4, Maj, surface_code", marker: 'triangle-up' },
+{ color: 'cyan', label: "ns, 10^-6, Maj, surface_code", marker: 'triangle-right' },
+{ color: 'magenta', label: "ns, 10^-3, surface_code", marker: 'triangle-down' },
+{ color: 'black', label: "ns, 10^-4, surface_code", marker: 'triangle-left' },
+{ color: 'black', label: "ns, 10^-4, Maj, floquet_code", marker: 'pentagon' },
+{ color: 'orange', label: "ns, 10^-6, Maj, floquet_code", marker: 'hexagon' }
+];
+  
+const configLegend = svg.append("g")
+  .attr("transform", `translate(280, 60)`);
+
+// Add instruction text above the legend
+// configLegend.append("text")
+//   .attr("x", 350)
+//   .attr("y", -10) // Adjust as necessary
+//   .text("Click to display all data from a configuration")
+//   .style("font-size", "12px")
+//   .style("font-weight", "normal")
+//   .style("font-family", "Times New Roman");
+
+const controls = svg.append("g")
+  .attr("transform", `translate(${width - 120}, 30)`);  // Adjust as needed for positioning
+
+// check if Iterative QPE is visible in order to autoscale
+function isIterativeQPEVisible() {
+  return svg.selectAll(".alg-Iterative-QPE").size() > 0; // Check if Iterative QPE is currently displayed
+}
+
+// check if the first two config (Iterative QPE data) are visible in order to autoscale
+function isIontrapconfiVisible() {
+  // Check if the configuration "μs, 10^-3, surface_code" is visible
+  const isConfig1Visible = svg.selectAll(".config-0").size() > 0; // config-0 corresponds to "μs, 10^-3, surface_code"
+  
+  // Check if the configuration "μs, 10^-4, surface_code" is visible
+  const isConfig2Visible = svg.selectAll(".config-1").size() > 0; // config-1 corresponds to "μs, 10^-4, surface_code"
+  
+  // Return true if either or both are visible
+  return isConfig1Visible || isConfig2Visible;
+}
+
+
+// place holders
+let visibleAlgorithms = {};
+let visibleConfigurations = {};
+
+// display algorithms 
+function displayAlgorithm(alg) {
+  const className = `alg-${alg.replace(/[^a-zA-Z0-9]/g, '-')}`;
+  
+  if (svg.selectAll(`.${className}`).empty()) {
+      // Automatically apply autoscale if "Iterative QPE" is being toggled on
+      if (alg === "Iterative QPE") {
+          autoscaleChart(); // Perform autoscaling first
+      }
+
+      // Proceed with drawing the algorithm area
+      const data = datasets[alg];
+      const area = d3.area()
+          .x(d => xScale(d.runtime))
+          .y0(height - margin.bottom)
+          .y1(d => yScale(d.qubits))
+          .curve(d3.curveMonotoneX);
+
+      // Use the color defined for the algorithm
+      const algColor = algorithmColors[alg] || "steelblue";
+
+      svg.append("path")
+          .datum(data)
+          .attr("fill", algColor)
+          .attr("d", area)
+          .attr("class", `data-path ${className}`);
+
+      data.forEach((d, i) => {
+          const config = configurations[i % configurations.length];
+          const markerType = markerTypes[config.marker];
+          const symbol = d3.symbol()
+              .type(markerType)
+              .size(40); // Adjust the size if necessary
+
+      svg.append("path")
+          .datum(d) // Bind data here so each marker knows about its specific data
+          .attr("d", symbol())
+          .attr("transform", `translate(${xScale(d.runtime)}, ${yScale(d.qubits)})`)
+          .attr("fill", config.color)
+          .attr("class", `marker ${className}`)
+          .on("mouseover", function(event) {
+              tooltip.transition()
+                  .duration(200)
+                  .style("opacity", 0.9);
+                  // Convert time based on its value
+                  let timeDisplay = '';
+                  if (d.runtime < 0.00009) {
+                    timeDisplay = `${(d.runtime *1000000).toFixed(2)} microseconds`;
+                  }
+                  else if (d.runtime < 0.001) {
+                    timeDisplay = `${(d.runtime*1000).toFixed(2)} milliseconds`;
+                  }
+                  else if (d.runtime < 60) {
+                      timeDisplay = `${d.runtime.toFixed(2)} seconds`;
+                  } else if (d.runtime < 3600) {
+                      timeDisplay = `${(d.runtime / 60).toFixed(2)} minutes`;
+                  } else if (d.runtime < 86400) {
+                      timeDisplay = `${(d.runtime / 3600).toFixed(2)} hours`;
+                  } else if (d.runtime < 2592000) {
+                      timeDisplay = `${(d.runtime / 86400).toFixed(2)} days`;
+                  } else if (d.runtime < 31104000) {
+                      timeDisplay = `${(d.runtime / 2592000).toFixed(2)} months`;
+                  } else {
+                      timeDisplay = `${(d.runtime / 31104000).toFixed(2)} years`;
+                  }
+                  
+                  tooltip.html(`Qubits: ${d.qubits.toFixed(3)}M, Runtime: ${timeDisplay}`)
+                      .style("left", (event.pageX + 10) + "px")
+                      .style("top", (event.pageY - 28) + "px");
+                  
+                  // // Add the use case name (algorithm)
+                  // tooltip.html(`Use Case: ${alg}<br>Qubits: ${d.qubits.toFixed(3)}M<br>Runtime: ${timeDisplay}`)
+                  //     .style("left", (event.pageX + 10) + "px")
+                  //     .style("top", (event.pageY - 28) + "px");
+          })
+          .on("mouseout", function() {
+              tooltip.transition()
+                  .duration(500)
+                  .style("opacity", 0);
+        });
+    });
+    } else {
+    // Hide the algorithm and its markers
+    svg.selectAll(`.${className}`).remove();
+  }
+}
+
+// Call displayAlgorithm for each dataset to ensure they are shown initially
+Object.keys(datasets).forEach(alg => {
+    displayAlgorithm(alg);
+});
+
+if (isIterativeQPEVisible()) {
+  autoscaleChart();
+}
+  
+  
+function drawAlgorithmData(alg) {
+  const data = datasets[alg];
+  const area = d3.area()
+      .x(d => xScale(d.runtime))
+      .y0(height - margin.bottom)
+      .y1(d => yScale(d.qubits))
+      .curve(d3.curveMonotoneX);
+
+  svg.append("path")
+      .datum(data)
+      .attr("fill", algorithmColors[alg] || "steelblue")
+      .attr("d", area)
+      .attr("class", `alg-${alg.replace(/[^a-zA-Z0-9]/g, '-')}`);
+}
+
+
+
+// function displayConfiguration(index) {
+//   if (visibleConfigurations[index]) {
+//       // If already visible, hide it
+//       svg.selectAll(`.config-${index}`).remove();
+//       delete visibleConfigurations[index];
+
+//   } else {
+//       // If not visible, show it
+//       Object.keys(datasets).forEach((alg) => {
+//           const data = datasets[alg];
+//           if (data.length > index) {
+//               const d = data[index];
+//               const markerType = markerTypes[configurations[index].marker]; // Get the correct marker type
+//               const symbol = d3.symbol()
+//                   .type(markerType) // Use the correct marker type
+//                   .size(80); // Adjust size as needed
+
+//               svg.append("path")
+//                   .attr("d", symbol())
+//                   .attr("transform", `translate(${xScale(d.runtime)}, ${yScale(d.qubits)})`)
+//                   .attr("fill", configurations[index].color)
+//                   .attr("class", `config-${index}`)
+//                   // Add hover functionality for the configuration points
+//                   .on("mouseover", function(event) {
+//                       tooltip.transition()
+//                           .duration(200)
+//                           .style("opacity", 0.9);
+//                       // Convert time based on its value, similar to what was done for algorithms
+//                       let timeDisplay = '';
+//                       if (d.runtime < 0.00009) {
+//                         timeDisplay = `${(d.runtime *1000000).toFixed(2)} microseconds`;
+//                       }
+//                       else if (d.runtime < 0.001) {
+//                         timeDisplay = `${(d.runtime*1000).toFixed(2)} milliseconds`;
+//                       }
+//                       else if (d.runtime < 60) {
+//                           timeDisplay = `${d.runtime.toFixed(2)} seconds`;
+//                       } else if (d.runtime < 3600) {
+//                           timeDisplay = `${(d.runtime / 60).toFixed(2)} minutes`;
+//                       } else if (d.runtime < 86400) {
+//                           timeDisplay = `${(d.runtime / 3600).toFixed(2)} hours`;
+//                       } else if (d.runtime < 2592000) {
+//                           timeDisplay = `${(d.runtime / 86400).toFixed(2)} days`;
+//                       } else if (d.runtime < 31104000) {
+//                           timeDisplay = `${(d.runtime / 2592000).toFixed(2)} months`;
+//                       } else {
+//                           timeDisplay = `${(d.runtime / 31104000).toFixed(2)} years`;
+//                       }
+
+//                       // Add the use case name (algorithm)
+//                       tooltip.html(`Use Case: ${alg}<br>Qubits: ${d.qubits.toFixed(3)}M<br>Runtime: ${timeDisplay}`)
+//                           .style("left", (event.pageX + 10) + "px")
+//                           .style("top", (event.pageY - 28) + "px");
+//                   })
+//                   .on("mouseout", function() {
+//                       tooltip.transition()
+//                           .duration(500)
+//                           .style("opacity", 0);
+//                   });
+//                 if (isIontrapconfiVisible()) {
+//                 autoscaleChart();}
+//           }
+//       });
+//       visibleConfigurations[index] = true;
+//   }
+// }
+
+
+// configurations.forEach((config, idx) => {
+//   const configItem = configLegend.append("g")
+//       .attr("transform", `translate(80, 10)`); // Adjust spacing
+
+//   const column = Math.floor(idx / 2);  // 4 columns: column index
+//   const x = column * 200;  // Adjust for 4 columns
+//   const y = (idx % 2) * 20;  // Two entries per column
+
+//   const marker = d3.symbol()
+//       .type(markerTypes[markers[idx % markers.length]])
+//       .size(38); // Adjust size as needed
+
+//   configItem.append("path")
+//       .attr("d", marker())
+//       .attr("transform", `translate(${x}, ${y})`) // Correct translation
+//       .attr("fill", colors[idx]);
+
+//   configItem.append("text")
+//       .attr("x", x+20) // Adjust text offset from marker
+//       .attr("y", y)
+//       .attr("alignment-baseline", "middle")
+//       .text(config.label)
+//       .style("font-size", "14px")
+//       .style("cursor", "pointer")
+//       .style("font-family", "Times New Roman")
+//       .on("click", () => displayConfiguration(idx));
+// });
+
+
+// const modalityButton = svg.append("g")
+//     .attr("transform", `translate(${margin.left}, ${margin.top - 100})`); // Adjust position as needed
+
+// // Add rectangle for the Qubit Modality button
+// modalityButton.append("rect")
+//     .attr("x", 0)
+//     .attr("y", 0)
+//     .attr("width", 200) // Width of the button
+//     .attr("height", 50) // Height of the button
+//     .attr("rx", 10) // Rounded corners
+//     .attr("ry", 10)
+//     .attr("class", "button-rect")
+//     .style("filter", "url(#button-filter)");
+
+// Add text for the Qubit Modality button
+// modalityButton.append("text")
+//     .attr("x", 100) // Center the text within the rectangle
+//     .attr("y", 25) // Vertically center the text within the rectangle
+//     .text("Qubit Modality")
+//     .attr("class", "button-text");
+
+
+// Adding a Qubit Modality legend
+const qubitModalityLegend = svg.append("g")
+    .attr("transform", `translate(${margin.left - 30}, ${margin.top - 150})`);  // Position at top-left
+
+// // Add header text above the modality options
+// qubitModalityLegend.append("text")
+//     .attr("x", 140)
+//     .attr("y", 10)
+//     .text("(Select modality to view)")
+//     .style("font-size", "12px")
+//     .style("font-weight", "normal")
+//     .style("font-family", "Times New Roman");
+
+
+// qubitModalityLegend.append("text")
+//     .attr("x", 30)
+//     .attr("y", 10)
+//     .text("Qubit Modality")
+//     .style("font-size", "16px")
+//     .style("font-weight", "bold")
+//     .style("font-family", "Times New Roman");
+
+const modalities = [
+    { label: "Trapped Ion", configs: [0, 1] },   // first two data points
+    { label: "Superconducting", configs: [4, 5] },  // 5th & 6th data points
+    { label: "Majorana", configs: [2, 3, 6, 7] }   // 2nd, 3rd, 7th, & 8th data points
+];
+
+let currentYModality = 20;
+
+// Vendor modality text display
+const vendorText = svg.append("text")
+  .attr("x", margin.left +20)  // Centered horizontally
+  .attr("y", margin.top)  // Positioned at the bottom
+  .attr("text-anchor", "start")  // Center the text horizontally
+  .style("font-size", "16px")
+  .style("font-family", "Times New Roman")
+  .attr("class", "vendor-modality-text")
+  .text("");  // Start with an empty text
+
+
+
+function displayModality(configIndices, modality) {
+    // First, clear any previously visible configurations that are not part of the new selection
+    configurations.forEach((config, idx) => {
+        if (!configIndices.includes(idx)) {
+            svg.selectAll(`.config-${idx}`).remove();  // Remove any data points not part of the current modality
+        }
+    });
+
+    // Check if the configurations for the selected modality are currently visible
+    let anyVisible = configIndices.some(index => !svg.selectAll(`.config-${index}`).empty());
+
+    if (anyVisible) {
+        // If any configurations are visible, remove all and clear the text
+        configIndices.forEach(index => {
+            svg.selectAll(`.config-${index}`).remove();
+        });
+        vendorText.text("");
+    } else {
+        // If no configurations are visible, display all and set the vendor text
+        configIndices.forEach(index => {
+            displayConfiguration(index);  // Ensure to implement this function to properly toggle visibility
+        });
+        setVendorText(modality);
+    }
+}
+
+
+function setVendorText(modality) {
+    switch(modality) {
+        case 'Trapped Ion':
+            vendorText.text("Vendor Modality: IonQ");
+            break;
+        case 'Superconducting':
+            vendorText.text("Vendor Modality: D-Wave Systems, Rigetti Computing, Google Quantum AI, IBM Quantum");
+            break;
+        case 'Majorana':
+            vendorText.text("Vendor Modality: Microsoft Quantum");
+            break;
+        default:
+            vendorText.text(""); // Clear text if modality is unrecognized
+    }
+}
+
+
+// modalities.forEach((modality, idx) => {
+//   const modalityText = qubitModalityLegend.append("text")
+//     .attr("x", 30)
+//     .attr("y", currentYModality +10)
+//     .style("font-size", "14px")
+//     .style("font-family", "Times New Roman")
+//     .style("cursor", "pointer")
+//     .text(modality.label)
+//     .on("click", () => displayModality(modality.configs, modality.label));  // Pass the label to show correct vendor
+//   currentYModality += 20;
+// });
+
+const labelOffset = 7;
+  
+// Add lines and labels for each time point
+Object.entries(timePoints).forEach(([label, seconds]) => {
+    const x = xScale(seconds);  // Convert time to x-coordinate
+
+});
+
+// add vertical dashed lines on the chart
+const timeTicks = [0.00001, 0.0001, 0.001,0.01,0.1, 1, 10, 100, 1000, 10000, 100000, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12];
+
+// Add vertical dashed lines at each tick value
+timeTicks.forEach(tick => {
+    const xPosition = xScale(tick); // Get the x-coordinate for each tick value
+
+    svg.append("line") // Adding a line for each tick
+        .attr("x1", xPosition)
+        .attr("x2", xPosition)
+        .attr("y1", height - margin.bottom) // Start from the bottom of the chart
+        .attr("y2", margin.top) // Extend to the top margin of the chart
+        .style("stroke", "#ccc") // Set the color of the line
+        .style("stroke-width", "0.3px")
+        .style("stroke-dasharray", "3,3"); // Make the line dashed
+});
+
+// add horizontal dashed lines on the chart
+const qubitTicks = [0.0000000001, 0.001, 0.1, 1, 10, 100];
+  
+qubitTicks.forEach(tick => {
+    const yPosition = yScale(tick); // Get the x-coordinate for each tick value
+
+    svg.append("line") // Adding a line for each tick
+        .attr("x1", width - margin.left - 125)
+        .attr("x2",  margin.right -110)
+        .attr("y1", yPosition) // Start from the bottom of the chart
+        .attr("y2", yPosition) // Extend to the top margin of the chart
+        .style("stroke", "#ccc") // Set the color of the line
+        .style("stroke-width", "0.5px")
+        .style("stroke-dasharray", "3,3"); // Make the line dashed
+});
+  
+  
+const controlLegend = svg.append("g")
+  .attr("transform", `translate(${width - 140}, ${margin.top - 100})`);  // Adjust position as needed
+
+  // const controlLegend = svg.append("g")
+//   .attr("transform", `translate(${width - 140}, ${height - 50})`);  // Change Y position to move it to bottom
+// Append a defs section for filter definitions
+// Append a defs section for filter definitions if not already done
+
+const defs = svg.append('defs');
+defs.append('filter')
+    .attr('id', 'button-filter')
+    .append('feDropShadow')
+    .attr('dx', '2')
+    .attr('dy', '2')
+    .attr('stdDeviation', '2');
+
+// Add rectangle for the button
+controlLegend.append("rect")
+    .attr("x", -40) // Adjust position based on your layout
+    .attr("y", -30)
+    .attr("width", 100) // Adjust width as needed
+    .attr("height", 30) // Adjust height as needed
+    .attr("rx", 5) // Rounded corners
+    .attr("ry", 5)
+    .attr("class", "button-rect");
+
+controlLegend.append("text")
+    .attr("x", 10)
+    .attr("y", -10)
+    .text("Clear Chart")
+    .attr("class", "button-text")
+    .style("cursor", "pointer")
+    .style("font-weight", "bold")
+    .style("font-family", "Times New Roman")
+    .on("click", clearAndResetChart);
+
+function autoscaleChart() {
+  // Gather all visible data to determine new scales
+  let allData = [];
+  Object.values(datasets).forEach(data => allData = allData.concat(data));
+
+  const xExtent = d3.extent(allData, d => d.runtime);
+  const yExtent = d3.extent(allData, d => d.qubits);
+
+  // Update scales based on visible data
+  xScale.domain([xExtent[0] / 10, xExtent[1] * 15]).nice();
+  yScale.domain([yExtent[0] / 10, yExtent[1] * 10]).nice();
+
+  // Update logarithmic x-axis labels below the axis
+  svg.select(".x-axis").transition().duration(500).call(
+    d3.axisBottom(xScale)
+      .tickValues(d3.scaleLog().domain(xScale.domain()).ticks()) // Only logarithmic ticks below the axis
+      .tickFormat(d => `10^${Math.log10(d)}`)
+  );
+  
+  // Remove existing custom time labels to avoid duplication
+  svg.selectAll(".time-label").remove();
+  
+  // Dynamically add time labels above the axis
+  Object.entries(timePoints).forEach(([label, seconds]) => {
+    const x = xScale(seconds);
+  
+    // Only add labels if they are within the current x-scale domain
+    if (x >= margin.left && x <= width - margin.right) {
+      svg.append("line")
+          .attr("class", "time-label")
+          .attr("x1", x)
+          .attr("y1", height - margin.bottom)
+          .attr("x2", x)
+          .attr("y2", height - margin.bottom - 5) // Small line as a tick mark
+          .attr("stroke", "black");
+      
+      svg.append("text")
+        .attr("class", "time-label")
+        .attr("x", x)
+        .attr("y", height - margin.bottom + 5)
+        .attr("transform", `rotate(-90, ${x}, ${height - margin.bottom - 7})`)  // Rotate 
+        .attr("dy", "-1em")
+        .style("text-anchor", "start")
+        .style("font-size", "12px")
+        .style("font-family", "Times New Roman")
+        .text(label.substring(2)); // Display time label without the dash
+    }
+  });
+  // Update y-axis
+  svg.select(".y-axis").transition().duration(500).call(d3.axisLeft(yScale));
+}
+
+function clearAndResetChart() {
+  // Remove all data from the chart
+  svg.selectAll(".data-path, .marker, [class^='config-']").remove();  
+
+  // Reset the scales to default or initial values
+  xScale.domain([0.1, 1e11]).nice();
+  yScale.domain([0.01, 100]).nice();
+
+  // Update axes with transitions
+  // Update logarithmic x-axis labels below the axis
+  svg.select(".x-axis").transition().duration(500).call(
+      d3.axisBottom(xScale)
+        .tickValues(d3.scaleLog().domain(xScale.domain()).ticks()) // Only logarithmic ticks below the axis
+        .tickFormat(d => `10^${Math.log10(d)}`)
+  );
+
+  svg.select(".y-axis").transition().duration(500).call(d3.axisLeft(yScale));
+
+  // Remove existing custom time labels to avoid duplication
+  svg.selectAll(".time-label").remove();
+
+  vendorText.text("");  // Clear vendor text when the chart is cleared
+
+  // Dynamically add time labels above the axis
+  Object.entries(timePoints).forEach(([label, seconds]) => {
+    const x = xScale(seconds);
+  
+    // Only add labels if they are within the current x-scale domain
+    if (x >= margin.left && x <= width - margin.right) {
+      svg.append("line")
+        .attr("class", "time-label")
+        .attr("x1", x)
+        .attr("y1", height - margin.bottom)
+        .attr("x2", x)
+        .attr("y2", height - margin.bottom - 5) // Small line as a tick mark
+        .attr("stroke", "black");
+      
+      svg.append("text")
+        .attr("class", "time-label")
+        .attr("x", x)
+        .attr("y", height - margin.bottom - 7)
+        .attr("transform", `rotate(-90, ${x}, ${height - margin.bottom - 7})`)  // Rotate 
+        .attr("dy", "-1em")
+        .style("text-anchor", "start")
+        .style("font-size", "12px")
+        .style("font-family", "Times New Roman")
+        .text(label.substring(2)); // Display time label without the dash
+    }
+  });
+    
+  svg.select(".y-axis").transition().duration(500).call(d3.axisLeft(yScale));
+
+  // If "Iterative QPE" is added back, apply autoscale automatically
+  if (isIterativeQPEVisible()) {
+      autoscaleChart();
+  }
+}
+
+const qubitRanges = {
+  "0.001-0.5": ["Iterative QPE", "Bayesian QPE", "Quantum Dynamics (Reduced T Factories)", "QAE"],
+  "0.5-1": ["Quantum Dynamics", "Quantum Dynamics (Reduced T Factories)", "QFT", "QPE (SHO)", "Grover's Algorithm"],
+  "1-10": ["Quantum Chemistry (Nitrogenase)", "Quantum Chemistry (Ruthenium)", "QPE (SHO)", "Grover's Algorithm", "QFT"],
+  "10-40": ["Factoring", "Quantum Chemistry (Ruthenium)", "QPE (SHO)", "Grover's Algorithm"]
+};
+
+
+d3.select("#qubitRange").on("input", function() {
+    const qubitValue = parseFloat(this.value);
+    updateQubitDisplay(qubitValue);  // Update display
+    onsole.log("Slider value:", qubitValue); // Debugging line
+    updateChartForQubitRange(qubitValue);  // Update chart
+});
+
+
+function mapSliderValueToQubitRange(sliderValue) {
+    // Custom mapping to expand the first segment on the slider
+    if (sliderValue < 25) {  // Maps to 0.001 - 0.5
+        return 0.001 + (0.499 * sliderValue / 25);
+    } else if (sliderValue < 50) {  // Maps to 0.5 - 1
+        return 0.5 + (0.5 * (sliderValue - 25) / 25);
+    } else if (sliderValue < 75) {  // Maps to 1 - 10
+        return 1 + (9 * (sliderValue - 50) / 25);
+    } else {  // Maps to 10 - 40
+        return 10 + (30 * (sliderValue - 75) / 25);
+    }
+}
+
+function updateQubitDisplay(sliderValue) {
+    const qubitValue = mapSliderValueToQubitRange(sliderValue);
+    updateChartForQubitRange(qubitValue);  // Call to update the chart with the new range
+    let displayValue = "0.001-0.5";  // Default range
+    if (qubitValue <= 0.5) {
+        displayValue = "0.001-0.5";
+    } else if (qubitValue <= 1) {
+        displayValue = "0.5-1";
+    } else if (qubitValue <= 10) {
+        displayValue = "1-10";
+    } else if (qubitValue <= 40) {
+        displayValue = "10-40";
+    }
+    document.getElementById("qubitDisplay").innerText = displayValue + " M";
+}
+
+d3.select("#qubitRange").on("input", function() {
+    const sliderValue = parseInt(this.value);
+    updateQubitDisplay(sliderValue);
+});
+
+
+function updateChartForQubitRange(qubitValue) {
+    let activeAlgorithms;
+    if (qubitValue <= 0.5) {
+        autoscaleChart();
+        activeAlgorithms = qubitRanges["0.001-0.5"];
+    } else if (qubitValue <= 1) {
+        clearAndResetChart();
+        activeAlgorithms = qubitRanges["0.5-1"];
+        autoscaleChart();
+    } else if (qubitValue <= 10) {
+        clearAndResetChart();
+        activeAlgorithms = qubitRanges["1-10"];
+    } else {
+        clearAndResetChart();
+        activeAlgorithms = qubitRanges["10-40"];
+    }
+    console.log("Active algorithms for range:", activeAlgorithms);
+    displayAlgorithmsBasedOnQubit(activeAlgorithms);
+}
+
+function displayAlgorithmsBasedOnQubit(activeAlgorithms) {
+    Object.keys(datasets).forEach(alg => {
+        const className = `alg-${alg.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        if (activeAlgorithms.includes(alg)) {
+            if (svg.selectAll(`.${className}`).empty()) {
+                displayAlgorithm(alg);
+            }
+        } else {
+            svg.selectAll(`.${className}`).remove();
+        }
+    });
+}
+
+
+// //  // 
+
+const runtimeRanges = {
+  "0-0.5": ["Iterative QPE"],
+  "0.5-7200": ["Bayesian QPE", "Quantum Dynamics", "Quantum Dynamics (Reduced T Factories)", "QFT"],
+  "7200-2592000": ["QAE"],
+  "2592000-157680000": ["QPE (SHO)", "Grover's Algorithm", "Factoring"],
+  "157680000-15768000000": ["Quantum Chemistry (Ruthenium)", "Quantum Chemistry (Nitrogenase)"]
+};
+
+d3.select("#runtimeRange").on("input", function() {
+  const runtimeValue = mapSliderValueToRuntime(this.value);
+  updateRuntimeDisplay(this.value);  // Update the display with the correct text range
+  updateChartForRuntimeRange(runtimeValue);  // Update chart based on runtime
+});
+
+
+function mapSliderValueToRuntime(sliderValue) {
+    if (sliderValue < 20) { // 0 - 0.5 sec
+        return sliderValue * 0.025;  // Scale for the range
+    } else if (sliderValue < 40) { // 0.5 sec - 7200 sec (2 hours)
+        return 0.5 + (sliderValue - 20) * 179.975;  // Scaled for the range
+    } else if (sliderValue < 60) { // 7200 sec - 2592000 sec (1 month)
+        return 7200 + (sliderValue - 40) * 43118;  // Scale for the range
+    } else if (sliderValue < 80) { // 1 month - 157680000 sec (5 years)
+        return 2592000 + (sliderValue - 60) * 1965600;  // Scale for the range
+    } else { // 5 years - 500 years
+        return 157680000 + (sliderValue - 80) * 1965600000;  // Scale for the range
+    }
+}
+
+
+function updateRuntimeDisplay(sliderValue) {
+  let displayText = "0-0.2 sec";  // Default text
+  if (sliderValue < 20) {
+    displayText = "0-0.5 sec";
+  } else if (sliderValue < 40) {
+    displayText = "0.5 sec - 2 hours";
+  } else if (sliderValue < 60) {
+    displayText = "2 hours - a month";
+  } else if (sliderValue < 80) {
+    displayText = "a month - 5 years";
+  } else {
+    displayText = "5 years - 500 years";
+  }
+  document.getElementById("runtimeDisplay").innerText = displayText;
+}
+
+
+
+function updateChartForRuntimeRange(runtimeValue) {
+    let activeAlgorithms;
+
+    if (runtimeValue < 0.5) { // 0-0.5 sec
+        autoscaleChart();
+        activeAlgorithms = runtimeRanges["0-0.5"];
+    } else if (runtimeValue < 7200) { // 0.5 sec - 2 hours (7200 seconds)
+        clearAndResetChart();
+        activeAlgorithms = runtimeRanges["0.5-7200"];
+    } else if (runtimeValue < 2592000) { // 7200 sec - 1 month (2592000 seconds)
+        clearAndResetChart();
+        activeAlgorithms = runtimeRanges["7200-2592000"];
+    } else if (runtimeValue < 157680000) { // 1 month - 5 years (157680000 seconds)
+        clearAndResetChart();
+        activeAlgorithms = runtimeRanges["2592000-157680000"];
+    } else { // 5 years - 500 years
+        clearAndResetChart();
+        activeAlgorithms = runtimeRanges["157680000-15768000000"];
+    }
+
+    console.log("Active algorithms for range:", activeAlgorithms.join(", "));
+    displayAlgorithmsBasedOnRuntime(activeAlgorithms);
+}
+
+function displayAlgorithmsBasedOnRuntime(activeAlgorithms) {
+    Object.keys(datasets).forEach(alg => {
+        const className = `alg-${alg.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        if (activeAlgorithms.includes(alg)) {
+            if (svg.selectAll(`.${className}`).empty()) {
+                displayAlgorithm(alg);
+            }
+        } else {
+            svg.selectAll(`.${className}`).remove();
+        }
+    });
+}
+
+
+
+
+    </script> <!-- Link to the JavaScript file -->
+</body>
+</html>
